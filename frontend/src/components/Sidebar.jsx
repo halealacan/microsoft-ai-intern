@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlusCircle, MessageSquare, Trash2, Cpu, Sparkles, BookOpen, ShieldCheck } from 'lucide-react';
+import { PlusCircle, MessageSquare, Trash2, Cpu, Sparkles, BookOpen, ShieldCheck, HelpCircle } from 'lucide-react';
 
 export default function Sidebar({
   conversations,
@@ -7,7 +7,9 @@ export default function Sidebar({
   onSelectConversation,
   onNewConversation,
   onClearHistory,
-  healthStatus
+  healthStatus,
+  currentMode = 'chat',
+  onSelectMode
 }) {
   return (
     <aside className="w-72 h-full glass-panel flex flex-col justify-between p-4 border-r border-[var(--border-subtle)] bg-[var(--bg-secondary)] text-slate-200 select-none">
@@ -21,18 +23,41 @@ export default function Sidebar({
             <h1 className="font-bold text-lg leading-tight tracking-wide gradient-text">
               AI Study Assistant
             </h1>
-            <p className="text-xs text-slate-400 font-medium">Phi-4 Mini • Foundry Local</p>
+            <p className="text-xs text-slate-400 font-medium">Gemini 3.5 Flash • Google Gemini API</p>
           </div>
         </div>
 
-        {/* New Chat Button */}
-        <button
-          onClick={onNewConversation}
-          className="w-full flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-medium shadow-md shadow-indigo-600/20 transition-all duration-200 active:scale-[0.98] mb-6"
-        >
-          <PlusCircle className="w-5 h-5" />
-          <span>New Study Session</span>
-        </button>
+        {/* Action Buttons */}
+        <div className="space-y-2 mb-6">
+          <button
+            onClick={() => {
+              if (onSelectMode) onSelectMode('chat');
+              onNewConversation();
+            }}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-200 active:scale-[0.98] ${
+              currentMode === 'chat'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/20'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
+            }`}
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>New Study Session</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (onSelectMode) onSelectMode('quiz');
+            }}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-200 active:scale-[0.98] ${
+              currentMode === 'quiz'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/20'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
+            }`}
+          >
+            <HelpCircle className="w-4 h-4 text-purple-400" />
+            <span>Interactive Quiz</span>
+          </button>
+        </div>
 
         {/* History Section */}
         <div className="mb-2">
@@ -58,7 +83,10 @@ export default function Sidebar({
               conversations.map((chat) => (
                 <button
                   key={chat.id}
-                  onClick={() => onSelectConversation(chat.id)}
+                  onClick={() => {
+                    if (onSelectMode) onSelectMode('chat');
+                    onSelectConversation(chat.id);
+                  }}
                   className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-sm transition-all duration-200 ${
                     chat.id === activeId
                       ? 'bg-indigo-600/20 text-indigo-300 border border-indigo-500/30 font-medium shadow-sm'
@@ -109,7 +137,7 @@ export default function Sidebar({
         {/* Privacy Note */}
         <div className="flex items-center gap-2 px-2 text-[11px] text-slate-500">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/80 shrink-0" />
-          <span>100% Private & Offline (Phi-4 Mini)</span>
+          <span>Powered by Google Gemini API (Gemini 3.5 Flash)</span>
         </div>
       </div>
     </aside>

@@ -60,7 +60,7 @@ export default function InputArea({ input, setInput, onSend, onStop, isStreaming
         </div>
 
         <div className="flex items-center justify-between px-2 mt-2 text-[11px] text-slate-500">
-          <span>AI Study Assistant powered by Phi-4 Mini</span>
+          <span>AI Study Assistant powered by Gemini 3.5 Flash</span>
           <span>Press Enter ↵ to send</span>
         </div>
       </div>

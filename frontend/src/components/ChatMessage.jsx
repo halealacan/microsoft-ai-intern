@@ -43,7 +43,7 @@ export default function ChatMessage({ message, isLast, isStreaming }) {
             </span>
             {!isUser && (
               <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 font-mono border border-indigo-500/20">
-                Phi-4 Mini
+                Gemini 3.5 Flash
               </span>
             )}
           </div>

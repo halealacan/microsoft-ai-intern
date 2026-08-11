@@ -12,7 +12,7 @@ export default function ChatHeader({ healthStatus, onCheckHealth, isStreaming })
           </h2>
         </div>
         <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
-          Phi-4 Mini
+          Gemini 3.5 Flash
         </span>
       </div>
 
@@ -32,10 +32,10 @@ export default function ChatHeader({ healthStatus, onCheckHealth, isStreaming })
           {healthStatus === 'disconnected' && <XCircle className="w-3.5 h-3.5 text-rose-400" />}
           <span>
             {healthStatus === 'connected'
-              ? 'Foundry Local Active'
+              ? 'Gemini API Active'
               : healthStatus === 'warning'
               ? 'Check Endpoint'
-              : 'Foundry Local Disconnected'}
+              : 'Gemini API Disconnected'}
           </span>
         </div>
 

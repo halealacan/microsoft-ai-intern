@@ -34,6 +34,20 @@ class ChatResponse(BaseModel):
     model: str
     error: bool = False
 
+class QuizRequest(BaseModel):
+    topic: str = Field(..., min_length=1, description="The subject or topic for the quiz")
+    question_count: int = Field(default=5, ge=1, le=20, description="Number of questions (1-20)")
+
+class QuizQuestion(BaseModel):
+    question: str
+    options: List[str]
+    correct_answer: int
+    explanation: str
+
+class QuizResponse(BaseModel):
+    title: str
+    questions: List[QuizQuestion]
+
 @app.get("/")
 def read_root():
     return {
@@ -78,6 +92,31 @@ async def chat_stream_endpoint(request: ChatRequest):
         ai_service.generate_stream(dict_messages),
         media_type="text/event-stream"
     )
+
+@app.post("/api/quiz", response_model=QuizResponse)
+async def quiz_endpoint(request: QuizRequest):
+    """Generate a multiple-choice quiz on a given topic."""
+    result = await ai_service.generate_quiz(
+        topic=request.topic,
+        question_count=request.question_count,
+    )
+
+    if result.get("error"):
+        raise HTTPException(status_code=503, detail=result.get("message"))
+
+    return QuizResponse(
+        title=result["title"],
+        questions=[
+            QuizQuestion(
+                question=q["question"],
+                options=q["options"],
+                correct_answer=q["correct_answer"],
+                explanation=q["explanation"],
+            )
+            for q in result["questions"]
+        ],
+    )
+
 
 if __name__ == "__main__":
     import uvicorn

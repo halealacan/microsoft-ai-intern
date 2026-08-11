@@ -4,6 +4,7 @@ import ChatHeader from './components/ChatHeader';
 import ChatMessage from './components/ChatMessage';
 import SuggestionChips from './components/SuggestionChips';
 import InputArea from './components/InputArea';
+import QuizView from './components/QuizView';
 import { AlertCircle, Terminal, RefreshCw } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
@@ -20,6 +21,7 @@ export default function App() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [healthStatus, setHealthStatus] = useState('checking');
   const [healthDetails, setHealthDetails] = useState(null);
+  const [currentMode, setCurrentMode] = useState('chat'); // 'chat' | 'quiz'
   const messagesEndRef = useRef(null);
 
   // Save conversations to localStorage
@@ -117,6 +119,14 @@ export default function App() {
     });
   };
 
+  const formatApiError = (rawError = '') => {
+    const s = String(rawError).toUpperCase();
+    if (s.includes('429') || s.includes('RESOURCE_EXHAUSTED') || s.includes('QUOTA')) {
+      return '⏳ **Gemini kullanım limiti geçici olarak doldu.** Lütfen kısa bir süre sonra tekrar deneyin.';
+    }
+    return null; // caller handles generic errors itself
+  };
+
   const handleSendMessage = async (customPrompt = '') => {
     const textToSend = (customPrompt || input).trim();
     if (!textToSend || isStreaming) return;
@@ -174,21 +184,31 @@ export default function App() {
       let accumulatedReply = '';
       let buffer = '';
 
+      // eslint-disable-next-line no-constant-condition
       while (true) {
         const { value, done } = await reader.read();
-        if (done) break;
 
-        buffer += decoder.decode(value, { stream: true });
+        // Decode: keep stream:true until the very last chunk so multi-byte
+        // characters that straddle network boundaries are reassembled correctly.
+        buffer += decoder.decode(value ?? new Uint8Array(), { stream: !done });
+
+        // Split on newlines. If the stream is still open, the last element may
+        // be an incomplete line — hold it back in buffer. If the stream is
+        // closed we want every byte, so we process everything (pop nothing).
         const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+        buffer = done ? '' : (lines.pop() ?? '');
 
         for (const line of lines) {
           const trimmed = line.trim();
           if (!trimmed || trimmed.startsWith(':')) continue;
 
           if (trimmed.startsWith('data: ')) {
-            const dataStr = trimmed.slice(6).trim();
-            if (dataStr === '[DONE]') break;
+            const dataStr = trimmed.slice(6);
+            if (dataStr === '[DONE]') {
+              // Backend signalled completion — drain reader and exit
+              await reader.cancel();
+              break;
+            }
 
             try {
               const parsed = JSON.parse(dataStr);
@@ -199,13 +219,18 @@ export default function App() {
                   { role: 'assistant', content: accumulatedReply }
                 ]);
               } else if (parsed.error) {
-                accumulatedReply += `\n\n*[Error: ${parsed.error}]*`;
+                const friendly = formatApiError(parsed.error);
+                accumulatedReply += friendly
+                  ? `\n\n${friendly}`
+                  : `\n\n*[Error: ${parsed.error}]*`;
               }
-            } catch (e) {
-              // ignore partial chunk parse errors
+            } catch (_e) {
+              // Ignore malformed JSON lines
             }
           }
         }
+
+        if (done) break;
       }
 
       const finalStreamMessages = [
@@ -217,9 +242,11 @@ export default function App() {
 
     } catch (err) {
       console.error(err);
+      const friendly = formatApiError(err.message);
       const errorMsg = {
         role: 'assistant',
-        content: `⚠️ **Connection Error**: ${err.message}\n\nPlease verify that **Microsoft Foundry Local** is running locally and serving the **Phi-4 Mini** model.`
+        content: friendly ??
+          `⚠️ **Connection Error**: ${err.message}\n\nPlease verify that the **Google Gemini API** key is set and the backend is running correctly.`
       };
       const finalErrorMessages = [...updatedMessages, errorMsg];
       setMessages(finalErrorMessages);
@@ -239,6 +266,8 @@ export default function App() {
         onNewConversation={handleNewConversation}
         onClearHistory={handleClearHistory}
         healthStatus={healthStatus}
+        currentMode={currentMode}
+        onSelectMode={(mode) => setCurrentMode(mode)}
       />
 
       {/* Main Content Area */}
@@ -259,7 +288,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                Microsoft Foundry Local endpoint is currently unreachable at <code className="font-mono bg-amber-950/60 px-1 py-0.5 rounded text-amber-200">http://localhost:5272/v1</code>.
+                Google Gemini API is currently unreachable. Please check your API key and network connection.
               </span>
             </div>
             <button
@@ -272,34 +301,41 @@ export default function App() {
           </div>
         )}
 
-        {/* Chat / Suggestion Body */}
-        <div className="flex-1 overflow-y-auto relative z-0">
-          {messages.length === 0 ? (
-            <SuggestionChips onSelect={(prompt) => handleSendMessage(prompt)} />
-          ) : (
-            <div className="max-w-4xl mx-auto py-6">
-              {messages.map((msg, idx) => (
-                <ChatMessage
-                  key={idx}
-                  message={msg}
-                  isLast={idx === messages.length - 1}
-                  isStreaming={isStreaming}
-                />
-              ))}
-              <div ref={messagesEndRef} />
+        {/* Main Body: Quiz or Chat */}
+        {currentMode === 'quiz' ? (
+          <QuizView onClose={() => setCurrentMode('chat')} />
+        ) : (
+          <>
+            {/* Chat / Suggestion Body */}
+            <div className="flex-1 overflow-y-auto relative z-0">
+              {messages.length === 0 ? (
+                <SuggestionChips onSelect={(prompt) => handleSendMessage(prompt)} />
+              ) : (
+                <div className="max-w-4xl mx-auto py-6">
+                  {messages.map((msg, idx) => (
+                    <ChatMessage
+                      key={idx}
+                      message={msg}
+                      isLast={idx === messages.length - 1}
+                      isStreaming={isStreaming}
+                    />
+                  ))}
+                  <div ref={messagesEndRef} />
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Input Area */}
-        <InputArea
-          input={input}
-          setInput={setInput}
-          onSend={() => handleSendMessage()}
-          onStop={() => setIsStreaming(false)}
-          isStreaming={isStreaming}
-          disabled={false}
-        />
+            {/* Input Area */}
+            <InputArea
+              input={input}
+              setInput={setInput}
+              onSend={() => handleSendMessage()}
+              onStop={() => setIsStreaming(false)}
+              isStreaming={isStreaming}
+              disabled={false}
+            />
+          </>
+        )}
       </main>
     </div>
   );
