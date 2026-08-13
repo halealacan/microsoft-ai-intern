@@ -14,18 +14,28 @@ import {
 
 const API_BASE = 'http://127.0.0.1:8000/api';
 
-export default function QuizView({ onClose }) {
+export default function QuizView({ onClose, initialQuizData = null, initialStage = null }) {
   // States: 'setup' | 'loading' | 'active' | 'result'
-  const [stage, setStage] = useState('setup');
+  const [stage, setStage] = useState(initialStage || (initialQuizData ? 'active' : 'setup'));
   const [topic, setTopic] = useState('');
   const [questionCount, setQuestionCount] = useState(5);
-  const [quizData, setQuizData] = useState(null);
+  const [quizData, setQuizData] = useState(initialQuizData);
   const [errorMsg, setErrorMsg] = useState('');
 
   // Quiz state
   const [currentIndex, setCurrentIndex] = useState(0);
   const [userAnswers, setUserAnswers] = useState({}); // { [questionIdx]: selectedOptionIdx }
   const [selectedOption, setSelectedOption] = useState(null);
+
+  React.useEffect(() => {
+    if (initialQuizData) {
+      setQuizData(initialQuizData);
+      setStage(initialStage || 'active');
+      setCurrentIndex(0);
+      setUserAnswers({});
+      setSelectedOption(null);
+    }
+  }, [initialQuizData, initialStage]);
 
   const handleGenerateQuiz = async (e) => {
     if (e) e.preventDefault();
@@ -100,6 +110,10 @@ export default function QuizView({ onClose }) {
   };
 
   const resetQuiz = () => {
+    if (initialQuizData && onClose) {
+      onClose();
+      return;
+    }
     setStage('setup');
     setTopic('');
     setQuizData(null);

@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -47,6 +47,25 @@ class QuizQuestion(BaseModel):
 class QuizResponse(BaseModel):
     title: str
     questions: List[QuizQuestion]
+
+class PDFUploadResponse(BaseModel):
+    name: str
+    uri: str
+    mime_type: str
+    display_name: Optional[str] = None
+
+class PDFSummarizeRequest(BaseModel):
+    file_name: Optional[str] = Field(None, description="Gemini file name (e.g. files/abc123xyz)")
+    file_uri: Optional[str] = Field(None, description="Gemini file URI (e.g. https://generativelanguage.googleapis.com/v1beta/files/abc123xyz)")
+
+class PDFSummarizeResponse(BaseModel):
+    summary: str
+    model: str
+
+class PDFQuizRequest(BaseModel):
+    file_name: Optional[str] = Field(None, description="Gemini file name (e.g. files/abc123xyz)")
+    file_uri: Optional[str] = Field(None, description="Gemini file URI (e.g. https://generativelanguage.googleapis.com/v1beta/files/abc123xyz)")
+    question_count: int = Field(default=5, ge=1, le=20, description="Number of questions (1-20)")
 
 @app.get("/")
 def read_root():
@@ -103,6 +122,103 @@ async def quiz_endpoint(request: QuizRequest):
 
     if result.get("error"):
         raise HTTPException(status_code=503, detail=result.get("message"))
+
+    return QuizResponse(
+        title=result["title"],
+        questions=[
+            QuizQuestion(
+                question=q["question"],
+                options=q["options"],
+                correct_answer=q["correct_answer"],
+                explanation=q["explanation"],
+            )
+            for q in result["questions"]
+        ],
+    )
+
+
+@app.post("/api/pdf/upload", response_model=PDFUploadResponse)
+async def upload_pdf_endpoint(file: UploadFile = File(...)):
+    """Upload a PDF document to Gemini Files API and return metadata."""
+    if not file.filename or not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid file type. Only PDF files are allowed."
+        )
+
+    contents = await file.read()
+    if not contents:
+        raise HTTPException(
+            status_code=400,
+            detail="Uploaded file is empty."
+        )
+
+    result = await ai_service.upload_file(
+        file_bytes=contents,
+        filename=file.filename,
+        mime_type=file.content_type or "application/pdf"
+    )
+
+    if result.get("error"):
+        raise HTTPException(
+            status_code=503,
+            detail=result.get("message", "Failed to upload file to Gemini.")
+        )
+
+    return PDFUploadResponse(
+        name=result["name"],
+        uri=result["uri"],
+        mime_type=result["mime_type"],
+        display_name=result.get("display_name")
+    )
+
+
+@app.post("/api/pdf/summarize", response_model=PDFSummarizeResponse)
+async def summarize_pdf_endpoint(request: PDFSummarizeRequest):
+    """Summarize an uploaded PDF using Gemini 3.5 Flash."""
+    if not request.file_name and not request.file_uri:
+        raise HTTPException(
+            status_code=400,
+            detail="Either file_name or file_uri must be provided."
+        )
+
+    result = await ai_service.summarize_pdf(
+        file_uri=request.file_uri,
+        file_name=request.file_name
+    )
+
+    if result.get("error"):
+        raise HTTPException(
+            status_code=503,
+            detail=result.get("message", "Failed to summarize PDF.")
+        )
+
+    return PDFSummarizeResponse(
+        summary=result["summary"],
+        model=result["model"]
+    )
+
+
+@app.post("/api/pdf/quiz", response_model=QuizResponse)
+async def pdf_quiz_endpoint(request: PDFQuizRequest):
+    """Generate a multiple-choice quiz directly from an uploaded PDF document."""
+    if not request.file_name and not request.file_uri:
+        raise HTTPException(
+            status_code=400,
+            detail="Either file_name or file_uri must be provided."
+        )
+
+    result = await ai_service.generate_pdf_quiz(
+        file_uri=request.file_uri,
+        file_name=request.file_name,
+        question_count=request.question_count,
+    )
+
+    if result.get("error"):
+        raise HTTPException(
+            status_code=503,
+            detail=result.get("message", "Failed to generate PDF quiz.")
+        )
 
     return QuizResponse(
         title=result["title"],

@@ -5,6 +5,7 @@ import ChatMessage from './components/ChatMessage';
 import SuggestionChips from './components/SuggestionChips';
 import InputArea from './components/InputArea';
 import QuizView from './components/QuizView';
+import PdfStudyView from './components/PdfStudyView';
 import { AlertCircle, Terminal, RefreshCw } from 'lucide-react';
 
 const API_BASE = 'http://127.0.0.1:8000/api';
@@ -301,9 +302,11 @@ export default function App() {
           </div>
         )}
 
-        {/* Main Body: Quiz or Chat */}
+        {/* Main Body: Quiz, PDF Study, or Chat */}
         {currentMode === 'quiz' ? (
           <QuizView onClose={() => setCurrentMode('chat')} />
+        ) : currentMode === 'pdf' ? (
+          <PdfStudyView />
         ) : (
           <>
             {/* Chat / Suggestion Body */}

@@ -2,7 +2,7 @@ import os
 import json
 import logging
 import asyncio
-from typing import AsyncGenerator, Dict, Any, List
+from typing import AsyncGenerator, Dict, Any, List, Optional
 
 from dotenv import load_dotenv
 from google import genai
@@ -429,6 +429,313 @@ Return ONLY a valid JSON object in this exact structure:
 
             except Exception as e:
                 logger.exception("Unexpected error in generate_quiz")
+                return {
+                    "error": True,
+                    "message": f"Error interacting with Gemini: {str(e)}",
+                }
+
+        return {
+            "error": True,
+            "message": f"Gemini API Error: {last_error or 'Unknown temporary error'}",
+        }
+
+    async def upload_file(
+        self,
+        file_bytes: bytes,
+        filename: str,
+        mime_type: str = "application/pdf",
+    ) -> Dict[str, Any]:
+        """Upload a file to Gemini Files API and return file metadata."""
+        import tempfile
+
+        suffix = os.path.splitext(filename)[1] or ".pdf"
+        temp_file = tempfile.NamedTemporaryFile(delete=False, suffix=suffix)
+        temp_path = temp_file.name
+        try:
+            temp_file.write(file_bytes)
+            temp_file.close()
+
+            client = self._create_client()
+            try:
+                uploaded_file = await client.aio.files.upload(
+                    file=temp_path,
+                    config=types.UploadFileConfig(
+                        mime_type=mime_type,
+                        display_name=filename,
+                    ),
+                )
+                return {
+                    "error": False,
+                    "name": getattr(uploaded_file, "name", None),
+                    "uri": getattr(uploaded_file, "uri", None),
+                    "mime_type": getattr(uploaded_file, "mime_type", mime_type),
+                    "display_name": getattr(uploaded_file, "display_name", filename),
+                }
+            finally:
+                await client.aio.aclose()
+        except errors.APIError as e:
+            logger.error("Gemini API error during file upload: %s", e)
+            return {
+                "error": True,
+                "message": f"Gemini API Error: {str(e)}",
+            }
+        except Exception as e:
+            logger.exception("Unexpected error during file upload")
+            return {
+                "error": True,
+                "message": f"File upload failed: {str(e)}",
+            }
+        finally:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception:
+                    pass
+
+    async def summarize_pdf(
+        self,
+        file_uri: Optional[str] = None,
+        file_name: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Summarize a previously uploaded PDF file using Gemini 3.5 Flash."""
+        target_uri = file_uri
+        if not target_uri and file_name:
+            if file_name.startswith("http://") or file_name.startswith("https://"):
+                target_uri = file_name
+            elif file_name.startswith("files/"):
+                target_uri = f"https://generativelanguage.googleapis.com/v1beta/{file_name}"
+            else:
+                target_uri = f"https://generativelanguage.googleapis.com/v1beta/files/{file_name}"
+
+        if not target_uri:
+            return {
+                "error": True,
+                "message": "Either file_uri or file_name must be provided.",
+            }
+
+        pdf_part = types.Part.from_uri(
+            file_uri=target_uri,
+            mime_type="application/pdf",
+        )
+
+        prompt = (
+            "Lütfen bu PDF dokümanını detaylı ve anlaşılır bir şekilde Türkçe olarak özetle. "
+            "Önemli noktaları, ana başlıkları ve maddeler halinde özet bilgilerini düzenli bir biçimde sun."
+        )
+
+        contents = [
+            types.Content(
+                role="user",
+                parts=[pdf_part, types.Part.from_text(text=prompt)],
+            )
+        ]
+
+        logger.info(
+            "Gemini PDF summarize request: model=%s, file_uri=%s",
+            self.model,
+            target_uri,
+        )
+
+        last_error = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                client = self._create_client()
+
+                try:
+                    response = await client.aio.models.generate_content(
+                        model=self.model,
+                        contents=contents,
+                        config=self._generation_config(),
+                    )
+                finally:
+                    await client.aio.aclose()
+
+                summary = (response.text or "").strip()
+
+                if not summary:
+                    return {
+                        "error": True,
+                        "message": "Gemini returned an empty summary.",
+                    }
+
+                return {
+                    "error": False,
+                    "summary": summary,
+                    "model": self.model,
+                }
+
+            except errors.APIError as e:
+                last_error = e
+
+                if is_retryable_api_error(e) and attempt < MAX_RETRIES - 1:
+                    delay = RETRY_DELAYS[attempt]
+                    logger.warning(
+                        "Temporary Gemini API error in summarize_pdf on attempt %s/%s: %s. Retrying in %ss.",
+                        attempt + 1,
+                        MAX_RETRIES,
+                        e,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+
+                logger.error("Gemini API error in summarize_pdf: %s", e)
+
+                return {
+                    "error": True,
+                    "message": f"Gemini API Error: {e}",
+                }
+
+            except Exception as e:
+                logger.exception("Unexpected error in summarize_pdf")
+
+                return {
+                    "error": True,
+                    "message": f"Error interacting with Gemini: {str(e)}",
+                }
+
+        return {
+            "error": True,
+            "message": f"Gemini API Error: {last_error or 'Unknown temporary error'}",
+        }
+
+    async def generate_pdf_quiz(
+        self,
+        file_uri: Optional[str] = None,
+        file_name: Optional[str] = None,
+        question_count: int = 5,
+    ) -> dict:
+        """Generate a multiple-choice quiz based directly on an uploaded PDF document using Gemini."""
+        target_uri = file_uri
+        if not target_uri and file_name:
+            if file_name.startswith("http://") or file_name.startswith("https://"):
+                target_uri = file_name
+            elif file_name.startswith("files/"):
+                target_uri = f"https://generativelanguage.googleapis.com/v1beta/{file_name}"
+            else:
+                target_uri = f"https://generativelanguage.googleapis.com/v1beta/files/{file_name}"
+
+        if not target_uri:
+            return {
+                "error": True,
+                "message": "Either file_uri or file_name must be provided.",
+            }
+
+        pdf_part = types.Part.from_uri(
+            file_uri=target_uri,
+            mime_type="application/pdf",
+        )
+
+        prompt = f"""You are an expert academic quiz creator.
+
+Create a multiple-choice quiz based ONLY on the contents of the attached PDF document.
+Number of questions: {question_count}
+
+STRICT RULES:
+- Each question must be strictly derived from facts present in the attached PDF.
+- Each question must have exactly 4 answer options (A, B, C, D).
+- correct_answer is the 0-based index of the correct option (0=A, 1=B, 2=C, 3=D).
+- explanation must be a concise 1-2 sentence justification referencing information from the PDF.
+- Use the primary language of the PDF document.
+- Do NOT include any text outside the JSON.
+
+Return ONLY a valid JSON object in this exact structure:
+{{
+  "title": "Quiz title based on PDF content",
+  "questions": [
+    {{
+      "question": "Question text?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_answer": 0,
+      "explanation": "Brief explanation of why the answer is correct."
+    }}
+  ]
+}}"""
+
+        contents = [
+            types.Content(
+                role="user",
+                parts=[pdf_part, types.Part.from_text(text=prompt)],
+            )
+        ]
+
+        logger.info(
+            "Gemini PDF quiz request: model=%s, file_uri=%s, questions=%s",
+            self.model,
+            target_uri,
+            question_count,
+        )
+
+        last_error = None
+
+        for attempt in range(MAX_RETRIES):
+            try:
+                client = self._create_client()
+
+                try:
+                    response = await client.aio.models.generate_content(
+                        model=self.model,
+                        contents=contents,
+                        config=types.GenerateContentConfig(
+                            temperature=0.4,
+                            top_p=0.9,
+                            max_output_tokens=4096,
+                            response_mime_type="application/json",
+                        ),
+                    )
+                finally:
+                    await client.aio.aclose()
+
+                raw = (response.text or "").strip()
+
+                try:
+                    data = json.loads(raw)
+                except Exception:
+                    logger.error("PDF Quiz JSON parse failed. Raw response:\n%s", raw[:500])
+                    return {
+                        "error": True,
+                        "message": "Gemini returned an invalid JSON response. Please try again.",
+                    }
+
+                if "questions" not in data or not isinstance(data.get("questions"), list):
+                    return {
+                        "error": True,
+                        "message": "Gemini response is missing the 'questions' field.",
+                    }
+
+                for q in data["questions"]:
+                    q.setdefault("question", "")
+                    q.setdefault("options", [])
+                    q.setdefault("correct_answer", 0)
+                    q.setdefault("explanation", "")
+
+                data.setdefault("title", "PDF Quiz")
+                data["error"] = False
+                return data
+
+            except errors.APIError as e:
+                last_error = e
+                if is_retryable_api_error(e) and attempt < MAX_RETRIES - 1:
+                    delay = RETRY_DELAYS[attempt]
+                    logger.warning(
+                        "Temporary Gemini API error in generate_pdf_quiz on attempt %s/%s: %s. Retrying in %ss.",
+                        attempt + 1,
+                        MAX_RETRIES,
+                        e,
+                        delay,
+                    )
+                    await asyncio.sleep(delay)
+                    continue
+
+                logger.error("Gemini API error in generate_pdf_quiz: %s", e)
+                return {
+                    "error": True,
+                    "message": f"Gemini API Error: {e}",
+                }
+
+            except Exception as e:
+                logger.exception("Unexpected error in generate_pdf_quiz")
                 return {
                     "error": True,
                     "message": f"Error interacting with Gemini: {str(e)}",

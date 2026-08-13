@@ -1,5 +1,5 @@
 import React from 'react';
-import { PlusCircle, MessageSquare, Trash2, Cpu, Sparkles, BookOpen, ShieldCheck, HelpCircle } from 'lucide-react';
+import { PlusCircle, MessageSquare, Trash2, Cpu, Sparkles, BookOpen, ShieldCheck, HelpCircle, FileText } from 'lucide-react';
 
 export default function Sidebar({
   conversations,
@@ -56,6 +56,20 @@ export default function Sidebar({
           >
             <HelpCircle className="w-4 h-4 text-purple-400" />
             <span>Interactive Quiz</span>
+          </button>
+
+          <button
+            onClick={() => {
+              if (onSelectMode) onSelectMode('pdf');
+            }}
+            className={`w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-sm transition-all duration-200 active:scale-[0.98] ${
+              currentMode === 'pdf'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/20'
+                : 'bg-slate-800/80 text-slate-300 hover:bg-slate-800 hover:text-white border border-slate-700/60'
+            }`}
+          >
+            <FileText className="w-4 h-4 text-pink-400" />
+            <span>PDF Study</span>
           </button>
         </div>
 
