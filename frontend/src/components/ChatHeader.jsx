@@ -8,7 +8,7 @@ export default function ChatHeader({ healthStatus, onCheckHealth, isStreaming })
         <div className="flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-indigo-400 animate-pulse" />
           <h2 className="text-base font-semibold text-slate-100">
-            Study Assistant Workstation
+            Çalışma Asistanı İstasyonu
           </h2>
         </div>
         <span className="hidden sm:inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/10 text-indigo-300 border border-indigo-500/20">
@@ -32,17 +32,17 @@ export default function ChatHeader({ healthStatus, onCheckHealth, isStreaming })
           {healthStatus === 'disconnected' && <XCircle className="w-3.5 h-3.5 text-rose-400" />}
           <span>
             {healthStatus === 'connected'
-              ? 'Gemini API Active'
+              ? 'Gemini API Aktif'
               : healthStatus === 'warning'
-              ? 'Check Endpoint'
-              : 'Gemini API Disconnected'}
+              ? 'Bağlantıyı Kontrol Et'
+              : 'Gemini API Bağlantısı Kesildi'}
           </span>
         </div>
 
         {/* Refresh health button */}
         <button
           onClick={onCheckHealth}
-          title="Re-check local model status"
+          title="Model durumunu tekrar kontrol et"
           className="p-2 rounded-xl text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 transition-all border border-transparent hover:border-slate-700"
         >
           <RefreshCw className="w-4 h-4" />

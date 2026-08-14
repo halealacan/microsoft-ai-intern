@@ -8,7 +8,7 @@ from ai_service import ai_service
 
 app = FastAPI(
     title="AI Study Assistant API",
-    description="FastAPI Backend for AI Study Assistant powered by Microsoft Foundry Local and Phi-4 Mini",
+    description="FastAPI Backend for AI Study Assistant powered by Google Gemini API and Gemini 3.5 Flash",
     version="1.0.0"
 )
 

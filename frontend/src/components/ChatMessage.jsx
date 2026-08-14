@@ -39,7 +39,7 @@ export default function ChatMessage({ message, isLast, isStreaming }) {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="font-semibold text-sm text-slate-200">
-              {isUser ? 'You' : 'AI Study Assistant'}
+              {isUser ? 'Siz' : 'Yapay Zeka Çalışma Asistanı'}
             </span>
             {!isUser && (
               <span className="text-[10px] px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 font-mono border border-indigo-500/20">
@@ -52,17 +52,17 @@ export default function ChatMessage({ message, isLast, isStreaming }) {
             <button
               onClick={handleCopy}
               className="opacity-0 group-hover:opacity-100 transition-opacity p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800/80 text-xs flex items-center gap-1"
-              title="Copy answer"
+              title="Cevabı kopyala"
             >
               {copied ? (
                 <>
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400 text-xs">Copied</span>
+                  <span className="text-emerald-400 text-xs">Kopyalandı</span>
                 </>
               ) : (
                 <>
                   <Copy className="w-3.5 h-3.5" />
-                  <span>Copy</span>
+                  <span>Kopyala</span>
                 </>
               )}
             </button>

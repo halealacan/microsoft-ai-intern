@@ -21,7 +21,7 @@ export default function Sidebar({
           </div>
           <div>
             <h1 className="font-bold text-lg leading-tight tracking-wide gradient-text">
-              AI Study Assistant
+              Yapay Zeka Çalışma Asistanı
             </h1>
             <p className="text-xs text-slate-400 font-medium">Gemini 3.5 Flash • Google Gemini API</p>
           </div>
@@ -41,7 +41,7 @@ export default function Sidebar({
             }`}
           >
             <PlusCircle className="w-4 h-4" />
-            <span>New Study Session</span>
+            <span>Yeni Çalışma Oturumu</span>
           </button>
 
           <button
@@ -55,7 +55,7 @@ export default function Sidebar({
             }`}
           >
             <HelpCircle className="w-4 h-4 text-purple-400" />
-            <span>Interactive Quiz</span>
+            <span>İnteraktif Quiz</span>
           </button>
 
           <button
@@ -69,18 +69,18 @@ export default function Sidebar({
             }`}
           >
             <FileText className="w-4 h-4 text-pink-400" />
-            <span>PDF Study</span>
+            <span>PDF Çalışması</span>
           </button>
         </div>
 
         {/* History Section */}
         <div className="mb-2">
           <div className="flex items-center justify-between px-2 mb-2 text-xs font-semibold text-slate-400 uppercase tracking-wider">
-            <span>Recent Sessions</span>
+            <span>Geçmiş Oturumlar</span>
             {conversations.length > 0 && (
               <button
                 onClick={onClearHistory}
-                title="Clear all chat history"
+                title="Tüm sohbet geçmişini temizle"
                 className="hover:text-rose-400 transition-colors p-1 rounded"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -91,7 +91,7 @@ export default function Sidebar({
           <div className="space-y-1 max-h-[calc(100vh-320px)] overflow-y-auto pr-1">
             {conversations.length === 0 ? (
               <div className="px-3 py-4 text-center text-xs text-slate-500 italic rounded-lg border border-dashed border-slate-800">
-                No previous sessions yet
+                Henüz geçmiş oturum bulunmuyor
               </div>
             ) : (
               conversations.map((chat) => (
@@ -108,7 +108,7 @@ export default function Sidebar({
                   }`}
                 >
                   <MessageSquare className={`w-4 h-4 shrink-0 ${chat.id === activeId ? 'text-indigo-400' : 'text-slate-500'}`} />
-                  <span className="truncate">{chat.title || 'Untitled Session'}</span>
+                  <span className="truncate">{chat.title || 'İsimsiz Oturum'}</span>
                 </button>
               ))
             )}
@@ -122,7 +122,7 @@ export default function Sidebar({
         <div className="flex items-center justify-between px-3 py-2 rounded-xl bg-slate-900/60 border border-slate-800 text-xs">
           <div className="flex items-center gap-2">
             <Cpu className="w-4 h-4 text-indigo-400" />
-            <span className="text-slate-300 font-medium">Local AI Model</span>
+            <span className="text-slate-300 font-medium">Gemini API</span>
           </div>
           <span className="flex items-center gap-1.5 font-semibold text-[11px]">
             <span
@@ -143,7 +143,7 @@ export default function Sidebar({
                   : 'text-rose-400'
               }
             >
-              {healthStatus === 'connected' ? 'Ready' : healthStatus === 'warning' ? 'Warning' : 'Offline'}
+              {healthStatus === 'connected' ? 'Aktif' : healthStatus === 'warning' ? 'Uyarı' : 'Çevrimdışı'}
             </span>
           </span>
         </div>
@@ -151,7 +151,7 @@ export default function Sidebar({
         {/* Privacy Note */}
         <div className="flex items-center gap-2 px-2 text-[11px] text-slate-500">
           <ShieldCheck className="w-3.5 h-3.5 text-emerald-500/80 shrink-0" />
-          <span>Powered by Google Gemini API (Gemini 3.5 Flash)</span>
+          <span>Google Gemini API (Gemini 3.5 Flash) ile desteklenmektedir</span>
         </div>
       </div>
     </aside>

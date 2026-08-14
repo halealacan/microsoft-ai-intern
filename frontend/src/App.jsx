@@ -73,7 +73,7 @@ export default function App() {
     const newId = Date.now().toString();
     const newChat = {
       id: newId,
-      title: 'New Study Session',
+      title: 'Yeni Çalışma Oturumu',
       createdAt: new Date().toISOString(),
       messages: []
     };
@@ -83,7 +83,7 @@ export default function App() {
   };
 
   const handleClearHistory = () => {
-    if (window.confirm('Are you sure you want to clear all past sessions?')) {
+    if (window.confirm('Tüm geçmiş çalışma oturumlarını silmek istediğinizden emin misiniz?')) {
       setConversations([]);
       setActiveId(null);
       setMessages([]);
@@ -99,13 +99,13 @@ export default function App() {
 
     setConversations((prev) => {
       const existingIdx = prev.findIndex((c) => c.id === currentId);
-      const title = autoTitle || (newMessages.find((m) => m.role === 'user')?.content.slice(0, 30) + '...') || 'Study Session';
+      const title = autoTitle || (newMessages.find((m) => m.role === 'user')?.content.slice(0, 30) + '...') || 'Çalışma Oturumu';
 
       if (existingIdx >= 0) {
         const updated = [...prev];
         updated[existingIdx] = {
           ...updated[existingIdx],
-          title: updated[existingIdx].title === 'New Study Session' ? title : updated[existingIdx].title,
+          title: updated[existingIdx].title === 'New Study Session' || updated[existingIdx].title === 'Yeni Çalışma Oturumu' ? title : updated[existingIdx].title,
           messages: newMessages
         };
         return updated;
@@ -247,7 +247,7 @@ export default function App() {
       const errorMsg = {
         role: 'assistant',
         content: friendly ??
-          `⚠️ **Connection Error**: ${err.message}\n\nPlease verify that the **Google Gemini API** key is set and the backend is running correctly.`
+          `⚠️ **Bağlantı Hatası**: ${err.message}\n\nLütfen **Google Gemini API** anahtarının tanımlı olduğundan ve sunucunun (backend) çalıştığından emin olun.`
       };
       const finalErrorMessages = [...updatedMessages, errorMsg];
       setMessages(finalErrorMessages);
@@ -289,7 +289,7 @@ export default function App() {
             <div className="flex items-center gap-2">
               <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
               <span>
-                Google Gemini API is currently unreachable. Please check your API key and network connection.
+                Google Gemini API sunucusuna şu anda erişilemiyor. Lütfen API anahtarınızı ve internet bağlantınızı kontrol edin.
               </span>
             </div>
             <button
@@ -297,7 +297,7 @@ export default function App() {
               className="flex items-center gap-1 font-semibold hover:underline px-2 py-1 rounded bg-amber-500/20"
             >
               <RefreshCw className="w-3 h-3" />
-              Retry Connection
+              Yeniden Bağlan
             </button>
           </div>
         )}
@@ -312,7 +312,10 @@ export default function App() {
             {/* Chat / Suggestion Body */}
             <div className="flex-1 overflow-y-auto relative z-0">
               {messages.length === 0 ? (
-                <SuggestionChips onSelect={(prompt) => handleSendMessage(prompt)} />
+                <SuggestionChips
+                  onSelect={(prompt) => handleSendMessage(prompt)}
+                  onFillInput={(prompt) => setInput(prompt)}
+                />
               ) : (
                 <div className="max-w-4xl mx-auto py-6">
                   {messages.map((msg, idx) => (
